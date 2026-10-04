@@ -17,6 +17,7 @@ Recorded on **4 October 2026**, using this Windows computer and the repository's
 | HTTP controls | State, joint commands, deterministic step/reset and cube operations exercised through the service/client tests. |
 | Robot asset parity | Original URDF/STL hashes recorded; flange forward kinematics compared with upstream Pinokin at three poses, with position differences below `1e-15 m`. |
 | Native PAROL6 controller | Existing `D:/HumanEd/.venv` executed this lab's `upstream-smoke` with forced mock serial. Home and a +2° J1 move passed. Reported joints were about `[92.0039, -90, 180.00074, 0, 0, 180]` degrees and ping reported `hardware_connected=False`. |
+| Native-to-physics bridge | An owned mock controller on UDP 5011 homed and moved J1 by +3°. Six live bridge samples reached the HTTP world on 8765; physics joint targets matched degree-to-radian telemetry within `1e-8 rad`. The controller was stopped afterwards and the dashboard reset. |
 | Hardware adapter contract | Three fake-client tests passed: explicit opt-in, refusal of a simulator connection, queued tool/TCP completion including index zero, radian/degree conversion, and small-move bound. No real hardware moved. |
 | Hugging Face access | Official `hf` CLI downloaded and inspected `lerobot/smolvla_base` configuration only, revision `d9f33c94a60fb382c90dea2164c96845bd955e28`; model weights/inference/fine-tuning were not attempted. |
 
@@ -60,7 +61,7 @@ The [initial published run](https://github.com/Takodachi696969/computer-vision/a
 
 The Windows job `111433665358` passed 26 tests and failed only the rendering test: MuJoCo reported `gladLoadGL`, with WGL unable to obtain an OpenGL-capable driver on the hosted runner. This is a runner rendering limitation; the full 27-test suite and rendered dashboard/demo passed on the Windows desktop. Physics integration, state/control APIs and learning do not require a display.
 
-The CI workflow separates hosted Windows's 26 tests that do not render from Linux's complete 27 tests and EGL render check. Hosted Windows therefore verifies the headless physics/API workflow; image generation is verified by the Windows desktop and Linux EGL runs. The follow-up run URL/result is recorded after the workflow change is published.
+The [final code verification run](https://github.com/Takodachi696969/computer-vision/actions/runs/37201738786), at commit `b3c7acd`, passed both jobs: Windows `111434663367` and Linux `111434663517`. Hosted Windows runs the 26 tests that do not render; Linux runs all 27 including EGL rendering. Both jobs also pass lint and `doctor`, and load/evaluate the bundled Windows-trained PPO checkpoint. Windows desktop image generation is independently verified locally. The final documentation commit changes this record only.
 
 ## Equipment and integrations not verified
 
