@@ -36,4 +36,3 @@ for ($taskAttempt=0; $taskAttempt -lt 30; $taskAttempt++) {
     Start-Sleep -Milliseconds 500
 }
 throw 'Server did not become healthy; inspect outputs/server.stderr.log.'
-

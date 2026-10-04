@@ -15,4 +15,3 @@ if ($taskProcess) {
 }
 Remove-Item -LiteralPath $taskPidFile
 Write-Host "Stopped the recorded lab server on port $Port."
-

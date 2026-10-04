@@ -9,4 +9,3 @@ if [[ "${1:-}" == "--camera" ]]; then extras+=(--extra camera); fi
 uv sync --frozen --python 3.12 --group dev "${extras[@]}"
 .venv/bin/humaned-lab doctor
 echo 'Ready. Start: .venv/bin/humaned-lab serve'
-

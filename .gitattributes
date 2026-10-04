@@ -1,0 +1,16 @@
+* text=auto eol=lf
+*.py text eol=lf
+*.md text eol=lf
+*.json text eol=lf
+*.toml text eol=lf
+*.lock text eol=lf
+*.yml text eol=lf
+*.sh text eol=lf
+*.ps1 text eol=lf
+*.txt text eol=lf
+*.html text eol=lf
+*.STL -text
+*.png -text
+*.zip -text
+# Preserve the unchanged upstream URDF bytes and SHA-256 on every platform.
+src/humaned_lab/simulation/assets/parol6/PAROL6.urdf -text whitespace=cr-at-eol

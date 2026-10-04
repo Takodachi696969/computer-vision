@@ -27,4 +27,3 @@ if ($LASTEXITCODE -ne 0) { throw 'Dependency installation failed.' }
 if ($LASTEXITCODE -ne 0) { throw 'Lab self-check failed.' }
 Write-Host 'Ready. Start: .\.venv\Scripts\humaned-lab.exe serve'
 Write-Host 'Dashboard: http://127.0.0.1:8765'
-

@@ -27,4 +27,3 @@ $taskPython = Join-Path $taskRoot '.upstream-venv\Scripts\python.exe'
 if ($LASTEXITCODE -ne 0) { throw 'Upstream install failed. Check MSVC Build Tools / TOPPRA; see docs/tutorial.md.' }
 & $taskPython -m humaned_lab upstream-smoke
 if ($LASTEXITCODE -ne 0) { throw 'Upstream mock controller test failed.' }
-

@@ -12,4 +12,3 @@ vendor/
 .env
 *.log
 .ipynb_checkpoints/
-
