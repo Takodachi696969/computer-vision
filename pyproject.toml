@@ -35,6 +35,7 @@ packages = ["src/humaned_lab"]
 
 [tool.pytest.ini_options]
 testpaths = ["tests"]
+markers = ["render: requires a working OpenGL context; exercised locally and by Linux EGL CI"]
 
 [tool.ruff]
 line-length = 100

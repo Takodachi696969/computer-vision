@@ -21,7 +21,7 @@ Set-Location computer-vision
 
 Open **[the dashboard](http://127.0.0.1:8765)**. Move a joint slider, click **Move to targets**, and place or launch a cube. Leave the server running while scripts use its API. Stop a foreground server with `Ctrl+C`.
 
-The bootstrap installs Python, locked dependencies, PPO training and Hugging Face tooling. It requires no WSL, robot, camera or C++ compiler. Use `-Camera` to include the RealSense SDK, or `-CoreOnly` for simulation without training. On Linux run `bash scripts/bootstrap.sh`; headless rendering may need EGL/Mesa (`MUJOCO_GL=egl`). Windows is verified locally; the included Linux CI workflow awaits its first run.
+The bootstrap installs Python, locked dependencies, PPO training and Hugging Face tooling. It requires no WSL, robot, camera or C++ compiler. Use `-Camera` to include the RealSense SDK, or `-CoreOnly` for simulation without training. On Linux run `bash scripts/bootstrap.sh`; headless rendering may need EGL/Mesa (`MUJOCO_GL=egl`). Windows desktop rendering is verified locally, and Linux's full suite and EGL rendering passed CI. Hosted Windows runners lack the required OpenGL driver; use `serve --no-render` for physics/API work without a display. See [verification](docs/verification.md).
 
 For a background server on Windows, use `scripts/start-lab.ps1` and `scripts/stop-lab.ps1`. Stop the old server before changing its scene.
 

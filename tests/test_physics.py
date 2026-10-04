@@ -168,6 +168,7 @@ def test_scene_save_roundtrip_and_validation(world, tmp_path):
         PhysicsWorld(saved)
 
 
+@pytest.mark.render
 def test_render_returns_actual_finite_rgb_image(world):
     world.step(100)
     pixels = world.render(480, 320)

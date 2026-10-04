@@ -19,7 +19,7 @@ The fork carries the lab branch based on HumanED's repository. A Python virtual 
 
 Bootstrap requires Git and `uv`. If `uv` is missing, install it with `winget install --id astral-sh.uv -e`, reopen PowerShell and rerun bootstrap. The tested version is in `.uv-version`; the script warns if yours differs. `bootstrap.ps1` defaults to core + training + Hub + developer tools. Add `-Camera` for RealSense, or use `-CoreOnly` for core + developer tools without the training/Hub extras. The script obtains Python 3.12 through `uv`.
 
-On Linux/macOS, with `uv` installed, use `bash scripts/bootstrap.sh` and `.venv/bin/humaned-lab doctor` / `.venv/bin/humaned-lab serve`. The optional script arguments are `--core-only` or `--camera`. These paths are provided for portability; this branch's recorded local validation was performed on Windows, and rendering requires an appropriate display/OpenGL backend.
+On Linux/macOS, with `uv` installed, use `bash scripts/bootstrap.sh` and `.venv/bin/humaned-lab doctor` / `.venv/bin/humaned-lab serve`. The optional script arguments are `--core-only` or `--camera`. Desktop validation was performed on Windows; the complete Linux suite and EGL rendering additionally passed GitHub Actions. macOS execution has not been tested. Rendering requires an appropriate display/OpenGL backend; on headless Linux with EGL/Mesa available, use `MUJOCO_GL=egl .venv/bin/humaned-lab serve`. Use `serve --no-render` for physics/API work without an image backend.
 
 For an explicit installation with `uv` already available:
 
@@ -585,7 +585,7 @@ This plan identifies the missing engineering pieces explicitly. The currently wo
 |---|---|
 | `humaned-lab` not found | Use `.\.venv\Scripts\humaned-lab.exe` or `uv run`; confirm bootstrap completed. |
 | Port already in use | Stop the existing server with `Ctrl+C`, or choose another port and matching client URL. |
-| Browser image missing but state works | Inspect `/health` and `render_error`; check OpenGL/display support. Physics can still run headless. |
+| Browser image missing but state works | Inspect `/health` and `render_error`; check OpenGL/display support. Hosted Windows runners can lack an OpenGL-capable WGL driver; use `serve --no-render` there. Linux rendering was verified with EGL. |
 | HTTP 422 | Check six-vector length, finite values, radians and joint limits; unknown scene/request keys are rejected. |
 | Slider targets do not move while paused | Resume physics, or call `/api/step`; targets need integration time. |
 | Cube stays frozen | The server may be paused by a policy-step request. Resume or continue policy steps. |

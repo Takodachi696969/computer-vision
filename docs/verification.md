@@ -1,6 +1,6 @@
 # What was actually verified
 
-Recorded on **4 October 2026**, on this Windows computer. This record distinguishes physical simulation, native-controller mock operation and equipment-dependent work.
+Recorded on **4 October 2026**, using this Windows computer and the repository's GitHub Actions runners. This record distinguishes physical simulation, native-controller mock operation and equipment-dependent work.
 
 ## Installed and executed locally
 
@@ -52,7 +52,15 @@ Use the saved [`evaluation-held-out.json`](../examples/checkpoints/ppo-reach/eva
 | Installed-wheel assets | Wheel installed into fresh `outputs/wheel-venv` with core dependencies, then `doctor` and rendered `demo` ran with working directory changed to `outputs`. Packaged robot/scene assets work without the source checkout as the current directory. |
 | Dependency portability | The explicit CPU PyTorch source in the lock avoids pulling large Linux CUDA dependencies for this default CPU workflow. |
 
-Bootstrap paths and CI are part of the branch. These fresh-environment and wheel checks were performed on Windows; Linux/macOS execution has not been tested on this host, and the included Linux CI awaits its first run.
+The fresh-environment and wheel checks above were performed on Windows. Linux execution was separately verified in GitHub Actions; macOS execution remains untested. `.gitattributes` preserves the copied URDF's original bytes for portable asset checksums and normalizes new source text to LF.
+
+## Published CI evidence
+
+The [initial published run](https://github.com/Takodachi696969/computer-vision/actions/runs/37201399827), at commit `92c802f`, verified the complete Linux suite, EGL rendering, `doctor` and lint. Its Linux job `111433665231` passed.
+
+The Windows job `111433665358` passed 26 tests and failed only the rendering test: MuJoCo reported `gladLoadGL`, with WGL unable to obtain an OpenGL-capable driver on the hosted runner. This is a runner rendering limitation; the full 27-test suite and rendered dashboard/demo passed on the Windows desktop. Physics integration, state/control APIs and learning do not require a display.
+
+The CI workflow separates hosted Windows's 26 tests that do not render from Linux's complete 27 tests and EGL render check. Hosted Windows therefore verifies the headless physics/API workflow; image generation is verified by the Windows desktop and Linux EGL runs. The follow-up run URL/result is recorded after the workflow change is published.
 
 ## Equipment and integrations not verified
 

@@ -20,5 +20,14 @@ jobs:
         run: sudo apt-get update && sudo apt-get install -y libegl1 libgl1-mesa-dri
       - run: uv sync --frozen --extra train --group dev
       - run: uv run --frozen --extra train ruff check .
-      - run: uv run --frozen --extra train pytest -q
+      - name: Test all physics, control, training and rendering on Linux
+        if: runner.os == 'Linux'
+        run: uv run --frozen --extra train pytest -q
+      # Hosted Windows runners lack a working WGL/OpenGL driver. Keep all
+      # non-render tests there; Linux EGL and local Windows run rendering too.
+      - name: Test physics, control and training on hosted Windows
+        if: runner.os == 'Windows'
+        run: uv run --frozen --extra train pytest -q -m "not render"
       - run: uv run --frozen --extra train python -m humaned_lab doctor
+      - name: Load and run the bundled Windows-trained checkpoint
+        run: uv run --frozen --extra train python -m humaned_lab evaluate examples/checkpoints/ppo-reach --episodes 1 --seed 20000 --output outputs/checkpoint-smoke.json
