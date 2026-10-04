@@ -1,0 +1,22 @@
+{
+  "schema_version": 1,
+  "name": "Free-falling and sliding cubes",
+  "timestep_s": 0.002,
+  "gravity_m_s2": [0, 0, -9.81],
+  "goal_m": [0.22, 0.18, 0.08],
+  "cubes": [
+    {"name": "target", "size_m": 0.04, "mass_kg": 0.08,
+     "position_m": [0.22, 0.18, 0.25], "velocity_m_s": [0.10, 0, 0],
+     "rgba": [0.95, 0.46, 0.18, 1]},
+    {"name": "blue_cube", "size_m": 0.05, "mass_kg": 0.12,
+     "position_m": [-0.22, 0.25, 0.30], "velocity_m_s": [0.22, -0.10, 0],
+     "angular_velocity_rad_s": [0, 1.5, 0.4], "rgba": [0.2, 0.55, 0.95, 1]},
+    {"name": "green_cube", "size_m": 0.035, "mass_kg": 0.06,
+     "position_m": [0.28, -0.15, 0.20], "velocity_m_s": [-0.15, 0.10, 0.15],
+     "friction": [0.3, 0.01, 0.001], "rgba": [0.22, 0.85, 0.5, 1]}
+  ],
+  "obstacles": [
+    {"name": "backstop", "position_m": [0.0, 0.5, 0.04], "size_m": [0.7, 0.025, 0.08],
+     "rgba": [0.42, 0.48, 0.58, 1]}
+  ]
+}

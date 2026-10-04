@@ -1,0 +1,66 @@
+{
+  "task": "reach_cube_above_v1",
+  "algorithm": "PPO",
+  "policy": "MultiInputPolicy",
+  "python": "3.12.14",
+  "package_versions": {
+    "mujoco": "3.14.0",
+    "gymnasium": "1.3.0",
+    "stable-baselines3": "2.9.0",
+    "torch": "2.14.1",
+    "numpy": "2.4.6"
+  },
+  "seed": 0,
+  "requested_timesteps": 100000,
+  "actual_timesteps": 100096,
+  "device": "cpu",
+  "observation_keys": [
+    "cube_velocity_m_s",
+    "delta_m",
+    "q_rad",
+    "qd_rad_s",
+    "target_m",
+    "tcp_m"
+  ],
+  "observation_units": "metres, radians, seconds; float32 arrays",
+  "action": "six values in [-1,1]; measured_q + action * 0.04 rad, clipped to joint limits",
+  "control_interval_s": 0.05,
+  "max_episode_steps": 200,
+  "success_radius_m": 0.035,
+  "success_hold_steps": 3,
+  "target_offset_from_cube_centre_m": 0.06,
+  "target_xy_jitter_m": 0.025,
+  "reward": "-distance_m + 5*(previous_distance_m-distance_m) - 0.005*mean(action^2) + 5 on success",
+  "wrappers": [
+    "Monitor"
+  ],
+  "observation_normalization": null,
+  "evaluation_seed_start": 10000,
+  "notes": "Simulation reaching only; short training is setup validation, not grasping competence.",
+  "scene_sha256": "fca0aef823d735a53c3dbd0fc64fe728e4e28ba52e2d3c1487ed356555be9ba2",
+  "training_physics_contact": {
+    "condim": 4,
+    "cube_priority": 0
+  },
+  "training_source_note": "Bundled checkpoint trained before cube contact priority and rolling-friction correction; final evaluation uses corrected physics. Original pre-correction task source was not archived.",
+  "final_evaluation_provenance": {
+    "scene_sha256": "fca0aef823d735a53c3dbd0fc64fe728e4e28ba52e2d3c1487ed356555be9ba2",
+    "scene_hash_encoding": "UTF-8 JSON, sorted keys, compact separators",
+    "physics_xml_sha256": "f3132994a1602f4aac169155a05d15580471deaa42aabb8ea105a4ce4ce60266",
+    "robot_urdf_sha256": "a5635bf36c8c5075f5b9ca41d6a73de2257df4a740dab9b9c30734dfd0d8b3be",
+    "source_sha256": {
+      "simulation/model.py": "920cebaf14b24f2f3a5b0cf1b5df47c8fbe73ef3cbcf9a138683df4fdb038351",
+      "simulation/world.py": "07f2cbeca8e03318a74c6b8be463771b25c86747e97df9c5d17cce5837d10fc3",
+      "training/env.py": "dfcb7db6ca17f7f7da3503237c0d73c143fac6199e115d3a60915a84dcdad11a",
+      "policies/base.py": "75cb2935a37b6958ab51ed30bb609e6b7bb3c9b96c9a48411e24e8945738ff6e"
+    },
+    "source_hash_encoding": "UTF-8 text with LF newlines",
+    "package_versions": {
+      "mujoco": "3.14.0",
+      "gymnasium": "1.3.0",
+      "stable-baselines3": "2.9.0",
+      "torch": "2.14.1+cpu",
+      "numpy": "2.4.6"
+    }
+  }
+}

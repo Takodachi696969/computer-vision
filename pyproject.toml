@@ -1,0 +1,56 @@
+[build-system]
+requires = ["hatchling==1.32.4"]
+build-backend = "hatchling.build"
+
+[project]
+name = "humaned-robot-lab"
+version = "0.1.0"
+description = "PAROL6 physics, local control, and policy experiments for HumanED"
+readme = "README.md"
+requires-python = ">=3.12,<3.13"
+license = "GPL-3.0-only"
+dependencies = [
+  "mujoco==3.14.0",
+  "numpy>=2.0,<2.5",
+  "gymnasium==1.3.0",
+  "fastapi==0.142.2",
+  "uvicorn==0.54.0",
+  "httpx==0.28.1",
+  "pillow==12.3.0",
+]
+
+[project.optional-dependencies]
+train = ["stable-baselines3==2.9.0", "torch==2.14.1"]
+camera = ["pyrealsense2==2.58.4.10922; platform_system == 'Windows' or platform_system == 'Linux'"]
+hub = ["huggingface-hub==2.1.1"]
+
+[dependency-groups]
+dev = ["pytest==9.1.1", "ruff==0.16.10", "build>=1.2"]
+
+[project.scripts]
+humaned-lab = "humaned_lab.cli:main"
+
+[tool.hatch.build.targets.wheel]
+packages = ["src/humaned_lab"]
+
+[tool.pytest.ini_options]
+testpaths = ["tests"]
+
+[tool.ruff]
+line-length = 100
+extend-exclude = ["*.ipynb"]
+
+[tool.ruff.lint]
+select = ["E4", "E7", "E9", "F"]
+
+[tool.uv]
+required-version = ">=0.8.0"
+
+[tool.uv.sources]
+torch = [{ index = "pytorch-cpu", marker = "sys_platform != 'darwin'" }]
+
+[[tool.uv.index]]
+name = "pytorch-cpu"
+url = "https://download.pytorch.org/whl/cpu"
+explicit = true
+

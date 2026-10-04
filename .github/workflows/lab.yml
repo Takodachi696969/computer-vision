@@ -1,0 +1,25 @@
+name: Robot lab
+on:
+  push:
+  pull_request:
+jobs:
+  core:
+    strategy:
+      matrix:
+        os: [windows-latest, ubuntu-latest]
+    runs-on: ${{ matrix.os }}
+    env:
+      MUJOCO_GL: ${{ matrix.os == 'ubuntu-latest' && 'egl' || 'glfw' }}
+    steps:
+      - uses: actions/checkout@v4
+      - uses: astral-sh/setup-uv@v6
+        with:
+          version: '0.12.12'
+      - name: Install Linux rendering libraries
+        if: runner.os == 'Linux'
+        run: sudo apt-get update && sudo apt-get install -y libegl1 libgl1-mesa-dri
+      - run: uv sync --frozen --extra train --group dev
+      - run: uv run --frozen --extra train ruff check .
+      - run: uv run --frozen --extra train pytest -q
+      - run: uv run --frozen --extra train python -m humaned_lab doctor
+

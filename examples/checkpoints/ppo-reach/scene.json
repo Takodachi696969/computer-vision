@@ -1,0 +1,118 @@
+{
+  "schema_version": 1,
+  "name": "PAROL6 cube reaching bench",
+  "timestep_s": 0.002,
+  "gravity_m_s2": [
+    0.0,
+    0.0,
+    -9.81
+  ],
+  "initial_q_rad": [
+    1.5707963267948966,
+    -1.5707963267948966,
+    3.141592653589793,
+    0.0,
+    0.0,
+    3.141592653589793
+  ],
+  "goal_m": [
+    0.22,
+    0.18,
+    0.08
+  ],
+  "cubes": [
+    {
+      "name": "target",
+      "size_m": [
+        0.04,
+        0.04,
+        0.04
+      ],
+      "position_m": [
+        0.22,
+        0.18,
+        0.16
+      ],
+      "rgba": [
+        0.95,
+        0.46,
+        0.18,
+        1.0
+      ],
+      "mass_kg": 0.08,
+      "quaternion_wxyz": [
+        1.0,
+        0.0,
+        0.0,
+        0.0
+      ],
+      "velocity_m_s": [
+        0.0,
+        0.0,
+        0.0
+      ],
+      "angular_velocity_rad_s": [
+        0.0,
+        0.0,
+        0.0
+      ],
+      "friction": [
+        0.8,
+        0.02,
+        0.002
+      ],
+      "position_jitter_m": [
+        0.0,
+        0.0,
+        0.0
+      ]
+    },
+    {
+      "name": "blue_cube",
+      "size_m": [
+        0.045,
+        0.045,
+        0.045
+      ],
+      "position_m": [
+        -0.16,
+        0.24,
+        0.18
+      ],
+      "rgba": [
+        0.2,
+        0.55,
+        0.95,
+        1.0
+      ],
+      "mass_kg": 0.1,
+      "quaternion_wxyz": [
+        1.0,
+        0.0,
+        0.0,
+        0.0
+      ],
+      "velocity_m_s": [
+        0.12,
+        0.02,
+        0.0
+      ],
+      "angular_velocity_rad_s": [
+        0.0,
+        0.0,
+        0.0
+      ],
+      "friction": [
+        0.8,
+        0.02,
+        0.002
+      ],
+      "position_jitter_m": [
+        0.0,
+        0.0,
+        0.0
+      ]
+    }
+  ],
+  "obstacles": []
+}
