@@ -1,6 +1,6 @@
 # Audited issues and limits
 
-Audit date: 4 October 2026. Findings below refer to the pinned revisions in [architecture.md](architecture.md), not an unbounded claim about every upstream release. No upstream source was patched by this package.
+Upstream audit date: 4 October 2026; physics-controls notes updated 5 October 2026. Findings below refer to the pinned revisions in [architecture.md](architecture.md), not an unbounded claim about every upstream release. No upstream source was patched by this package.
 
 ## Verified upstream mismatches
 
@@ -33,7 +33,10 @@ Upstream client/controller protocol versions must match. Its default CLI UDP hos
 |---|---|
 | Imported URDF frames, axes, limits, masses and inertia | URDF values are not system identification of the physical arm. Some source centres of mass lie outside the corresponding visual link bounds (L1/L4 examples documented in asset provenance); retain traceability but validate CAD/measurements before accurate-dynamics claims. |
 | Rigid cubes, gravity, floor/obstacle contact and angular motion | Primitive link collision proxies approximate the robot; robot self-collision is disabled. Calibrate proxies or convex collision meshes for contact-dependent work. |
-| Position actuators with limited force | Effort bounds come from generic URDF entries; gains/damping are hand-set. No electrical stepper driver, gearbox backlash or controller-latency model. |
+| Position actuators with editable finite torque caps and stall diagnostics | Six default effort bounds are generic 300 Nm URDF entries; gains/damping are hand-set. Saturation/error/low-speed diagnostics do not identify measured hardware stall. No electrical stepper driver, torque-speed curve, heating, gearbox backlash or controller-latency model. |
+| Editable cube dimensions, mass, local COM, friction and requested restitution | Displaced-COM inertia is an approximation; requested bounce maps to soft-contact parameters and needs empirical drop calibration. No fracture, deformation or structural-failure model. |
+| Mechanism checkboxes for gravity, contacts, friction, damping and actuation | These allow ablation, not a fidelity score. Enabling more mechanisms or raising solver iteration limits does not establish agreement with hardware measurements. |
+| Cartesian position IK and sequential waypoints | Orientation is unconstrained and joint targets are interpolated. There is no collision-free planner or guaranteed straight Cartesian segment; an IK solution can be unreachable by weak/blocked servos. |
 | A marker at the bare wrist flange | No finger joints/contact pads, gripper articulation or gripping policy. Add these and a release/lift success metric for pick-and-place. |
 | PPO reaching environment and a policy extension point | Smoke training checks that optimization and checkpoint inference execute. Learned competence requires held-out seeded evaluation and enough samples. |
 | Simulated image rendering | PPO currently consumes state vectors, not RGB/depth observations. Image policies need a new observation schema and training pipeline. |
@@ -49,3 +52,5 @@ Upstream client/controller protocol versions must match. Its default CLI UDP hos
 5. Record synchronized demonstrations and implement a versioned image/state/action contract before fine-tuning a LeRobot model.
 
 Use [verification.md](verification.md) for actual test outcomes; this audit intentionally does not infer physical success from a passing simulator test.
+
+See [physics-controls.md](physics-controls.md) for repeatable material/effort experiments. The reference PPO checkpoint retains its original task and provenance. Modified cube/motor/contact settings require fresh evaluation; a historical score is not evidence for the new dynamics.

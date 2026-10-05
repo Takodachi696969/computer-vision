@@ -2,6 +2,17 @@
 
 Recorded on **4 October 2026**, using this Windows computer and the repository's GitHub Actions runners. This record distinguishes physical simulation, native-controller mock operation and equipment-dependent work.
 
+## Physics controls update — 5 October 2026
+
+- Full local suite: **57 passed**, including owner-thread rendered model rebuilds, independent contact/gravity/friction layers, torque caps and load response, approximate restitution, live Cartesian motion, jog watchdog and policy compatibility. Ruff and JavaScript syntax checks passed. The two Gymnasium unbounded-observation warnings remain expected.
+- Fresh MJPEG frames received over two six-second 960×640 tests: **30.15 FPS** at target 30 (182 unique frames), **59.92 FPS** at target 60 (361 unique frames). Renderer metrics were 30.05/59.96 FPS, physics speed approximately 1×, and recorded dropped wall time was zero. These are local measurements, not guarantees for other hardware or browser presentation.
+- Browser controls exercised: viewer 60 FPS, arrow joint selection/key release, lower-torque preset application, cube dimensions/mass/local COM/restitution edits, friction-layer toggle, and Cartesian waypoint editor. The live three-waypoint Python example reached its final target with about 4.0 mm measured error. All movement uses simulated servos and contacts.
+- `examples/scenes/load_comparison.py` uses independent 0.3 s worlds with caps `[12,12,8,1,1,1]` Nm and drops a box onto the wrist. Light 0.01 kg: peak arm normal load 0.629 N, peak tip deflection 3.954 mm, no saturation. Heavy 5 kg: 73.037 N, 50.553 mm peak deflection, two saturated joints; final deflection 12.511 mm after the cube moves/slips. These are model outcomes, not physical payload limits.
+- The configured base model's bundled PPO was reevaluated on 20 episodes starting at seed 20000: **19/20** reached, random baseline 0/20. This small regression check does not establish quality for edited cube materials/actuators/scenes. The previous 100-episode evaluation remains historical evidence for its recorded physics model.
+- Wheel build succeeded and contains the split HTML/CSS/JavaScript dashboard assets. No new runtime dependencies were needed. Source robot assets remain unchanged.
+
+The service was left running on loopback port 8765 with baseline physical properties and a 60 FPS viewer setting. Reopening it on another session defaults to 30 FPS.
+
 ## Installed and executed locally
 
 | Component | Observed result |

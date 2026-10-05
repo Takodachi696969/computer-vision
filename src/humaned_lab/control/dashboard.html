@@ -1,62 +1,119 @@
 <!doctype html>
 <html lang="en">
 <head>
-<meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1">
-<title>HumanED · Robot Lab</title>
-<style>
-:root{color-scheme:dark;--bg:#0b1018;--panel:#131c29;--line:#293648;--text:#edf3fa;--muted:#91a4b9;--orange:#ffb15c;--mint:#77dfc6}
-*{box-sizing:border-box}body{margin:0;font:15px/1.5 system-ui,sans-serif;color:var(--text);background:var(--bg)}
-header{padding:24px 4vw;display:flex;align-items:center;justify-content:space-between;border-bottom:1px solid var(--line)}
-.brand{font-weight:750;letter-spacing:.12em}.brand span{color:var(--orange)}.tag{font:12px monospace;color:var(--mint);padding:6px 10px;background:#17332f;border:1px solid #31554f;border-radius:6px}
-main{max-width:1560px;margin:auto;padding:30px 4vw}h1{font-size:34px;letter-spacing:-.04em;margin:4px 0 8px}p{color:var(--muted);margin:0 0 20px}h2{font-size:15px;margin:0 0 18px;letter-spacing:.03em}a{color:var(--mint)}
-.eyebrow{color:var(--orange);font:12px monospace;letter-spacing:.16em}.grid{display:grid;grid-template-columns:minmax(0,1.7fr) minmax(320px,1fr);gap:20px}.panel{border:1px solid var(--line);border-radius:12px;background:var(--panel);padding:20px}
-.viewer{padding:0;overflow:hidden;position:relative;min-height:310px;background:#1b2330}.viewer img{display:block;width:100%;aspect-ratio:3/2;object-fit:contain}.caption{padding:15px 20px;display:flex;justify-content:space-between;color:var(--muted);font-size:12px;border-top:1px solid var(--line)}
-.row{display:flex;gap:9px;align-items:center;flex-wrap:wrap}button{border:1px solid var(--line);border-radius:6px;padding:9px 13px;background:#202d3f;color:var(--text);cursor:pointer;font-weight:600}button:hover{background:#30445f}.primary{background:var(--orange);color:#152031;border:0}.primary:hover{background:#ffca8e}
-.joint{margin:15px 0}.joint label{display:flex;justify-content:space-between;font:13px monospace;margin-bottom:6px}.joint span{color:var(--orange)}input[type=range]{width:100%;accent-color:var(--orange);cursor:pointer}input[type=number],select{min-width:0;width:100%;background:#0b1420;color:var(--text);border:1px solid var(--line);padding:9px;border-radius:6px}.fields{display:grid;grid-template-columns:repeat(3,1fr);gap:8px;margin:10px 0}
-.small{font-size:12px;color:var(--muted)}.telemetry{display:grid;grid-template-columns:repeat(3,1fr);gap:10px;margin-top:20px}.stat{background:#0b1420;border-radius:8px;padding:14px}.stat strong{font:17px monospace;display:block;color:var(--mint)}.stat span{font-size:11px;color:var(--muted)}.below{display:grid;grid-template-columns:1fr 1fr;gap:20px;margin-top:20px}code,pre{font:12px/1.7 monospace}pre{background:#0b1420;border-radius:8px;padding:14px;overflow:auto;color:var(--mint)}
-#notice{min-height:25px;color:var(--orange);font-size:13px;margin-top:12px}.status{font:12px monospace;color:var(--mint)}.pill{border:1px solid var(--line);padding:4px 8px;border-radius:5px;color:var(--muted);font-size:12px}
-@media(max-width:960px){.grid,.below{grid-template-columns:1fr}header{padding:18px 5vw}h1{font-size:28px}}
-</style>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width,initial-scale=1">
+  <title>HumanED · Physics Lab</title>
+  <link rel="stylesheet" href="/assets/dashboard.css">
+  <script src="/assets/dashboard.js" defer></script>
 </head>
 <body>
-<header><div class="brand">HUMAN<span>ED</span> <span style="color:var(--muted);font-weight:400">/ ROBOT LAB</span></div><span class="tag">MUJOCO PHYSICS · LOCAL</span></header>
-<main>
-<div class="eyebrow">PAROL6 / EXPERIMENT WORKSPACE</div><h1>Build a world. Teach a robot.</h1>
-<p>Six joints, real gravity, moving cubes. Control the arm here or connect your own policy to the local API.</p>
-<div class="grid">
-<div>
-<div class="panel viewer"><img id="frame" alt="Live PAROL6 physical simulation"><div class="caption"><span>CAD visuals · approximate contact geometry</span><span id="clock">0.00 s</span></div></div>
-<div class="telemetry"><div class="stat"><strong id="tcpX">—</strong><span>TCP X / metres</span></div><div class="stat"><strong id="tcpY">—</strong><span>TCP Y / metres</span></div><div class="stat"><strong id="tcpZ">—</strong><span>TCP Z / metres</span></div></div>
-</div>
-<div class="panel"><div class="row" style="justify-content:space-between"><h2>JOINT CONTROL</h2><span class="status" id="connection">CONNECTING</span></div><div id="joints"></div>
-<div class="row"><button class="primary" id="apply">Move to targets</button><button id="pause">Pause</button><button id="reset">Reset world</button></div>
-<div id="notice" role="status"></div><div class="small" id="measured"></div><div class="small" style="margin-top:10px">Sliders set target angles in degrees; the API uses radians. Movement uses position actuators and retains gravity and contact. This page controls the simulator.</div>
-</div></div>
-<div class="below">
-<div class="panel"><h2>CUBE EXPERIMENTS</h2><label class="small" for="cube">Object</label><select id="cube"></select>
-<div class="small" style="margin-top:12px">Position / metres</div><div class="fields"><input id="cx" type="number" step="0.01" value="0.25" aria-label="Cube X"><input id="cy" type="number" step="0.01" value="0.1" aria-label="Cube Y"><input id="cz" type="number" step="0.01" value="0.35" aria-label="Cube Z"></div>
-<div class="small">Velocity / metres per second</div><div class="fields"><input id="vx" type="number" step="0.05" value="0.15" aria-label="Cube velocity X"><input id="vy" type="number" step="0.05" value="0" aria-label="Cube velocity Y"><input id="vz" type="number" step="0.05" value="0" aria-label="Cube velocity Z"></div>
-<button id="drop">Place / launch cube</button><div class="small" id="cubeState" style="margin-top:10px"></div></div>
-<div class="panel"><h2>YOUR POLICY GOES HERE</h2><p class="small">Read <code>GET /api/state</code>, then submit six normalized joint deltas. Each action advances the simulation by exactly 50 ms and pauses continuous playback.</p>
-<pre>POST /api/step
-{"action": [0.1, 0, 0, 0, 0, 0]}
-
-Δ target = action × 0.04 rad
-action ∈ [-1, 1]⁶</pre><div class="row"><a href="/docs" target="_blank">Explore the API ↗</a><span class="pill">humaned-lab policy module:Class</span></div><div class="small" style="margin-top:12px">Use configs/scenes to build environments. Start with the reach-cube task; add grasping, cameras and domain randomization as your experiments develop.</div></div>
-</div>
-</main>
-<script>
-let state=null, initialized=false, editing=false, polling=false;
-const $=id=>document.getElementById(id), deg=r=>r*180/Math.PI, rad=d=>d*Math.PI/180;
-async function api(path,body){const r=await fetch(path,{method:body?'POST':'GET',headers:body?{'Content-Type':'application/json'}:{},body:body?JSON.stringify(body):undefined});if(!r.ok){const j=await r.json();throw Error(typeof j.detail==='string'?j.detail:JSON.stringify(j.detail));}return r.json();}
-function sliders(s){$('joints').replaceChildren();s.q_rad.forEach((q,i)=>{const div=document.createElement('div');div.className='joint';const label=document.createElement('label');label.htmlFor='j'+i;label.append('J'+(i+1));const value=document.createElement('span');value.id='val'+i;value.textContent=deg(q).toFixed(1)+'°';label.append(value);const input=document.createElement('input');input.type='range';input.id='j'+i;input.min=deg(s.joint_limits_rad[i][0]);input.max=deg(s.joint_limits_rad[i][1]);input.step='0.1';input.value=deg(q);input.oninput=()=>{editing=true;value.textContent=Number(input.value).toFixed(1)+'°';};div.append(label,input);$('joints').append(div);});initialized=true;editing=false;}
-function show(s){state=s;if(!initialized)sliders(s);else if(!editing){s.joint_targets_rad.forEach((q,i)=>{$('j'+i).value=deg(q);$('val'+i).textContent=deg(q).toFixed(1)+'°';});}$('measured').textContent='Measured joints: '+s.q_rad.map(q=>deg(q).toFixed(1)+'°').join(' · ');$('connection').textContent=s.physics_error?'PHYSICS ERROR':s.running?'RUNNING':'PAUSED';$('pause').textContent=s.running?'Pause':'Resume';$('clock').textContent=s.time_s.toFixed(2)+' s';['tcpX','tcpY','tcpZ'].forEach((id,i)=>$(id).textContent=s.tcp_m[i].toFixed(3));if(!$('cube').options.length){s.cubes.forEach(c=>{const o=document.createElement('option');o.value=c.name;o.textContent=c.name;$('cube').append(o);});}const cube=s.cubes.find(c=>c.name===$('cube').value);if(cube)$('cubeState').textContent='Measured position: '+cube.position_m.map(v=>v.toFixed(3)).join(', ')+' m';if(s.render_error)$('notice').textContent='Rendering unavailable: '+s.render_error;}
-async function action(fn,message){try{show(await fn());$('notice').textContent=message;}catch(e){$('notice').textContent=e.message;}}
-$('apply').onclick=()=>action(async()=>{const s=await api('/api/joints',{q_rad:Array.from({length:6},(_,i)=>rad(Number($('j'+i).value)))});editing=false;return s;},'Targets applied.');
-$('pause').onclick=()=>action(()=>api('/api/running',{running:!state.running}),'Playback updated.');
-$('reset').onclick=()=>action(async()=>{const s=await api('/api/reset',{seed:0});sliders(s);return s;},'World reset.');
-$('drop').onclick=()=>action(()=>api('/api/cubes/'+encodeURIComponent($('cube').value),{position_m:['cx','cy','cz'].map(id=>Number($(id).value)),velocity_m_s:['vx','vy','vz'].map(id=>Number($(id).value))}),'Cube placed. Resume playback to see motion.');
-async function poll(){if(polling)return;polling=true;try{show(await api('/api/state'));$('frame').src='/api/frame.jpg?t='+Date.now();}catch(e){$('connection').textContent='OFFLINE';$('notice').textContent=e.message;}finally{polling=false;}}
-poll();setInterval(poll,250);
-</script>
-</body></html>
+  <header>
+    <div class="brand">HUMAN<span>ED</span> <span class="muted">/ PHYSICS LAB</span></div>
+    <div class="row"><span class="tag">MUJOCO · LOCAL</span><span id="connection" class="status">CONNECTING</span></div>
+  </header>
+  <main>
+    <div class="intro"><div><div class="eyebrow">PAROL6 / CONTACT EXPERIMENTS</div><h1>Move the arm. Feel the load.</h1>
+      <p>Stream the physical world, steer the tip, and tune the objects and actuators.</p></div>
+      <div class="row"><button id="pause">Pause</button><button id="reset">Reset world</button><button id="saveScene">Save scene JSON</button></div>
+    </div>
+    <div id="notice" role="status" aria-live="polite"></div>
+    <div class="workspace">
+      <section class="view-column">
+        <div class="panel viewer">
+          <img id="frame" src="/api/stream.mjpg" alt="Live PAROL6 physical simulation">
+          <div class="caption"><span>CAD visuals · primitive contact shapes</span><span id="clock">0.00 s</span></div>
+        </div>
+        <div class="stats">
+          <div class="stat"><strong id="tcp">—</strong><span>Measured tip XYZ / metres</span></div>
+          <div class="stat"><strong id="fps">—</strong><span>Actual renderer FPS</span></div>
+          <div class="stat"><strong id="realtime">—</strong><span>Simulation speed / wall time</span></div>
+        </div>
+        <details class="panel" id="viewerPanel">
+          <summary>Viewer settings <span class="muted">resolution · FPS · contact overlay</span></summary>
+          <div class="settings-grid">
+            <label>Target FPS<select id="targetFps"><option>15</option><option selected>30</option><option>60</option></select></label>
+            <label>Resolution<select id="resolution"><option value="640,426">640 × 426 / faster</option><option value="960,640" selected>960 × 640</option><option value="1280,854">1280 × 854</option></select></label>
+            <label>JPEG quality<input id="jpegQuality" type="number" min="40" max="95" value="85"></label>
+          </div>
+          <label class="check"><input id="showCollisions" type="checkbox"> Show robot contact proxies</label>
+          <button id="applyViewer">Apply viewer settings</button><span id="renderTiming" class="small"></span>
+        </details>
+        <details class="panel" open>
+          <summary>Joint loads <span class="muted">torque · tracking error · saturation</span></summary>
+          <div class="table-scroll"><table><thead><tr><th>Joint</th><th>Actual / target °</th><th>Torque Nm</th><th>Load / cap</th></tr></thead><tbody id="loads"></tbody></table></div>
+          <p class="small">A saturated actuator can stall or miss its target. These are research servo parameters; structural breakage and measured PAROL6 motor curves are not modeled.</p>
+        </details>
+      </section>
+      <section class="panel controls">
+        <h2>ARM CONTROL</h2>
+        <div class="tabs" role="tablist" aria-label="Arm control mode">
+          <button id="tab-joints" class="active" role="tab" aria-selected="true" data-mode="joints">Joint targets</button>
+          <button id="tab-tip" role="tab" aria-selected="false" data-mode="tip">Tip / waypoints</button>
+          <button id="tab-jog" role="tab" aria-selected="false" data-mode="jog">Arrow keys</button>
+        </div>
+        <div id="mode-joints" class="mode">
+          <div id="joints"></div>
+          <button class="primary" id="applyJoints">Move to targets</button>
+          <p class="small">Targets in degrees. Position servos move the physical joints; contact and torque limits still apply.</p>
+        </div>
+        <div id="mode-tip" class="mode" hidden>
+          <h3>Move the bare flange tip</h3>
+          <div class="vector"><label>X / m<input id="tx" type="number" step="any" value="0.22"></label><label>Y / m<input id="ty" type="number" step="any" value="0.18"></label><label>Z / m<input id="tz" type="number" step="any" value="0.20"></label></div>
+          <div class="row"><label>Segment time / s<input id="duration" type="number" min="0.2" max="30" step="any" value="2"></label><button id="useTip">Use measured tip</button></div>
+          <div class="settings-grid"><label>Arrival tolerance / mm<input id="tipTolerance" type="number" min="1" max="100" step="any" value="10"></label><label>Settling timeout / s<input id="settleTimeout" type="number" min="0.1" max="30" step="any" value="3"></label><label>Contact stop / N<input id="contactStop" type="number" min="0.1" max="10000" step="any" value="100"></label></div>
+          <label class="check"><input id="useContactStop" type="checkbox"> Stop the sequence if arm contact exceeds this limit</label>
+          <div class="row"><button class="primary" id="moveTip">Solve IK + move</button><button id="appendWaypoint">Add to sequence</button></div>
+          <p class="small">Position-only IK with joint interpolation. Tool orientation is free; this is not collision-free path planning or a guaranteed straight Cartesian path.</p>
+          <h3>Waypoint sequence</h3><ol id="waypoints" class="waypoints"></ol>
+          <div class="row"><button id="runWaypoints">Run sequence</button><button id="stopWaypoints">Stop / hold</button><button id="clearWaypoints">Clear</button></div>
+          <label class="check"><input id="loopPath" type="checkbox"> Loop sequence</label>
+          <div id="pathStatus" class="readout">No active sequence.</div>
+        </div>
+        <div id="mode-jog" class="mode" hidden>
+          <h3>Hold an arrow to move</h3>
+          <p>← / → select a joint. ↑ / ↓ move it. Keys 1–6 also select a joint.</p>
+          <div id="jointPicker" class="joint-picker"></div>
+          <label>Target movement rate / degrees per second<input id="jogRate" type="number" min="1" max="50" step="any" value="10"></label>
+          <div class="jog-pad"><button id="jogNegative" aria-label="Jog selected joint negative">↓ Negative</button><strong id="selectedJoint">J1</strong><button id="jogPositive" aria-label="Jog selected joint positive">↑ Positive</button></div>
+          <button id="enableKeyboard" class="primary">Enable arrow controls</button>
+          <div id="jogStatus" class="readout">Select this mode, then enable arrow controls.</div>
+          <p class="small">Release to hold. Jogging stops on focus loss or missing heartbeat. Physics must be running. The rate changes servo targets; heavy loads can reduce actual movement.</p>
+        </div>
+      </section>
+    </div>
+    <div class="experiments">
+      <section class="panel">
+        <h2>CUBE PROPERTIES & LAUNCH</h2>
+        <label>Object<select id="cube"></select></label>
+        <h3>Physical properties</h3>
+        <div class="vector"><label>Width X / m<input id="sx" type="number" min="0.002" max="2" step="any"></label><label>Depth Y / m<input id="sy" type="number" min="0.002" max="2" step="any"></label><label>Height Z / m<input id="sz" type="number" min="0.002" max="2" step="any"></label></div>
+        <div class="settings-grid"><label>Mass / kg<input id="mass" type="number" min="0.001" max="100" step="any"></label><label>Sliding friction<input id="sliding" type="number" min="0" step="any"></label><label>Torsional friction<input id="torsional" type="number" min="0" step="any"></label><label>Rolling friction<input id="rolling" type="number" min="0" step="any"></label></div>
+        <div class="vector"><label>Local COM X / m<input id="comx" type="number" step="any"></label><label>Local COM Y / m<input id="comy" type="number" step="any"></label><label>Local COM Z / m<input id="comz" type="number" step="any"></label></div>
+        <div class="row"><label class="check"><input id="useRestitution" type="checkbox"> Tune bounce</label><label>Requested restitution / approximate<input id="restitution" type="number" min="0" max="0.95" step="any" value="0.3"></label></div>
+        <p class="small">COM is an offset in the box's local frame. Restitution is mapped to MuJoCo's soft-contact damping; the measured bounce also depends on geometry and timestep. Editing dimensions can create overlaps.</p>
+        <button id="applyCube" class="primary">Apply physical properties</button>
+        <h3>Place / launch</h3>
+        <div class="vector"><label>X / m<input id="cx" type="number" step="any" value="0.22"></label><label>Y / m<input id="cy" type="number" step="any" value="0.18"></label><label>Z / m<input id="cz" type="number" step="any" value="0.30"></label></div>
+        <div class="vector"><label>VX / m/s<input id="vx" type="number" step="any" value="0.15"></label><label>VY / m/s<input id="vy" type="number" step="any" value="0"></label><label>VZ / m/s<input id="vz" type="number" step="any" value="0"></label></div>
+        <button id="launchCube">Place / launch cube</button><div id="cubeState" class="readout"></div>
+      </section>
+      <section class="panel">
+        <h2>PHYSICS LAYERS & ACTUATORS</h2>
+        <p class="small">Toggle effects to isolate an experiment. Mass and inertia remain part of rigid-body dynamics. More checked boxes do not establish hardware accuracy.</p>
+        <div id="physicsChecks" class="check-grid"></div>
+        <button id="applyPhysics">Apply physics layers</button>
+        <h3>Position servo model</h3>
+        <div class="row"><button id="baselineActuators">URDF baseline</button><button id="loadActuators">Load experiment preset</button></div>
+        <p class="small">The baseline uses nominal URDF effort limits. The lower-torque preset is illustrative and uncalibrated. Kp is stiffness (Nm/rad); Kv is damping (Nm·s/rad).</p>
+        <div class="table-scroll"><table class="actuators"><thead><tr><th>Joint</th><th>Cap / Nm</th><th>Kp</th><th>Kv</th></tr></thead><tbody id="actuatorInputs"></tbody></table></div>
+        <label class="check"><input id="limitTargetSpeed" type="checkbox"> Limit servo target speed</label>
+        <label>Maximum target speed / rad/s<input id="targetSpeed" type="number" min="0.01" max="5" step="any" value="0.5"></label>
+        <button id="applyActuators" class="primary">Apply actuator model</button>
+        <p class="small">Heavy objects resist motion through contact forces and friction. Watch actual torque, saturation and tracking error above. There is no gripper or structural failure model.</p>
+      </section>
+    </div>
+    <footer><a href="/docs" target="_blank" rel="noopener">HTTP API reference ↗</a><span>Your policy interface remains on port 8765. Saving a scene exports physical settings for reuse.</span></footer>
+  </main>
+</body>
+</html>

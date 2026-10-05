@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 import copy
+import hashlib
 import json
 import re
 import threading
@@ -12,7 +13,15 @@ from typing import Sequence
 import mujoco
 import numpy as np
 
-from .model import ASSET_DIR, HOME_Q_RAD, JOINT_NAMES, build_model_xml
+from .model import (
+    ASSET_DIR,
+    DEFAULT_ACTUATORS,
+    DEFAULT_PHYSICS,
+    HOME_Q_RAD,
+    JOINT_NAMES,
+    build_model_xml,
+    restitution_solref,
+)
 
 _NAME = re.compile(r"[A-Za-z][A-Za-z0-9_]{0,63}\Z")
 
@@ -33,8 +42,51 @@ def _unknown_keys(value: dict, known: set[str], label: str) -> None:
         raise ValueError(f"Unknown {label} fields: {', '.join(sorted(extras))}")
 
 
+def _validated_physics(source: dict) -> dict:
+    if not isinstance(source, dict):
+        raise ValueError("physics settings must be an object")
+    _unknown_keys(source, set(DEFAULT_PHYSICS), "physics")
+    result = copy.deepcopy(DEFAULT_PHYSICS)
+    for name, value in source.items():
+        if not isinstance(value, bool):
+            raise ValueError(f"{name} must be a boolean")
+        result[name] = value
+    if result["self_collision_enabled"]:
+        raise ValueError(
+            "Self-collision is unavailable with the overlapping approximate robot proxies"
+        )
+    return result
+
+
+def _validated_actuators(source: dict) -> dict:
+    if not isinstance(source, dict):
+        raise ValueError("actuator settings must be an object")
+    _unknown_keys(source, set(DEFAULT_ACTUATORS), "actuator")
+    result = copy.deepcopy(DEFAULT_ACTUATORS)
+    result.update(source)
+    for name, low, high in (
+        ("kp", 0, 2000),
+        ("kv", 0, 100),
+        ("torque_limits_nm", 0.001, 300),
+        ("target_velocity_limits_rad_s", 0.001, 10),
+    ):
+        value = result[name]
+        if value is None and name == "target_velocity_limits_rad_s":
+            continue
+        if isinstance(value, (int, float)) and not isinstance(value, bool):
+            value = [value] * 6
+        vector = _vector(value, 6, name)
+        if np.any(vector < low) or np.any(vector > high):
+            raise ValueError(f"{name} values must be between {low} and {high}")
+        result[name] = vector.tolist()
+    return result
+
+
 def _scene_config(path: Path) -> dict:
-    source = json.loads(path.read_text(encoding="utf-8-sig"))
+    return _validated_scene(json.loads(path.read_text(encoding="utf-8-sig")), path.stem)
+
+
+def _validated_scene(source: dict, default_name: str = "Scene") -> dict:
     if not isinstance(source, dict):
         raise ValueError("Scene must be a JSON object")
     _unknown_keys(
@@ -48,6 +100,8 @@ def _scene_config(path: Path) -> dict:
             "goal_m",
             "cubes",
             "obstacles",
+            "physics",
+            "actuators",
         },
         "scene",
     )
@@ -55,13 +109,15 @@ def _scene_config(path: Path) -> dict:
         raise ValueError("Only scene schema_version=1 is supported")
     scene = dict(
         schema_version=1,
-        name=source.get("name", path.stem),
+        name=source.get("name", default_name),
         timestep_s=float(source.get("timestep_s", 0.002)),
         gravity_m_s2=_vector(source.get("gravity_m_s2", [0, 0, -9.81]), 3, "gravity_m_s2").tolist(),
         initial_q_rad=_vector(source.get("initial_q_rad", HOME_Q_RAD), 6, "initial_q_rad").tolist(),
         goal_m=_vector(source.get("goal_m", [0.22, 0.18, 0.08]), 3, "goal_m").tolist(),
         cubes=[],
         obstacles=[],
+        physics=_validated_physics(source.get("physics", {})),
+        actuators=_validated_actuators(source.get("actuators", {})),
     )
     if not np.isfinite(scene["timestep_s"]) or not 0.0002 <= scene["timestep_s"] <= 0.01:
         raise ValueError("timestep_s must be between 0.0002 and 0.01")
@@ -82,6 +138,8 @@ def _scene_config(path: Path) -> dict:
                     "angular_velocity_rad_s",
                     "friction",
                     "position_jitter_m",
+                    "com_offset_m",
+                    "restitution",
                 }
             _unknown_keys(item, keys, category)
             name = item.get("name")
@@ -120,8 +178,25 @@ def _scene_config(path: Path) -> dict:
                 if np.linalg.norm(quat) < 1e-9:
                     raise ValueError(f"{name}.quaternion_wxyz cannot be zero")
                 friction = _vector(item.get("friction", [0.8, 0.02, 0.002]), 3, f"{name}.friction")
-                if np.any(friction < 0):
-                    raise ValueError(f"{name}.friction cannot be negative")
+                if np.any(friction < 0) or np.any(friction > 5):
+                    raise ValueError(f"{name}.friction values must be between 0 and 5")
+                com = _vector(item.get("com_offset_m", [0, 0, 0]), 3, f"{name}.com_offset_m")
+                if np.any(np.abs(com) > size * 0.5 * 0.95):
+                    raise ValueError(
+                        f"{name}.com_offset_m must be within 95% of the box half extents"
+                    )
+                restitution = item.get("restitution")
+                if restitution is not None:
+                    if (
+                        isinstance(restitution, bool)
+                        or not isinstance(restitution, (int, float))
+                        or not np.isfinite(restitution)
+                        or not 0 <= restitution <= 0.95
+                    ):
+                        raise ValueError(
+                            f"{name}.restitution must be null or a number between 0 and 0.95"
+                        )
+                    restitution = float(restitution)
                 jitter = _vector(
                     item.get("position_jitter_m", [0, 0, 0]), 3, f"{name}.position_jitter_m"
                 )
@@ -140,6 +215,8 @@ def _scene_config(path: Path) -> dict:
                     ).tolist(),
                     friction=friction.tolist(),
                     position_jitter_m=jitter.tolist(),
+                    com_offset_m=com.tolist(),
+                    restitution=restitution,
                 )
             scene[category].append(obj)
     return scene
@@ -162,6 +239,18 @@ class PhysicsWorld:
         self.model_xml, assets = build_model_xml(self.scene)
         self.model = mujoco.MjModel.from_xml_string(self.model_xml, assets)
         self.data = mujoco.MjData(self.model)
+        self._bind_model()
+        self._renderer = None
+        self._render_shape = None
+        self._render_thread_id = None
+        self._physics_thread_id = None
+        self._closed = False
+        self._targets = HOME_Q_RAD.copy()
+        self.model_revision = 0
+        self.reset()
+
+    def _bind_model(self) -> None:
+        """Rebind all ids after an atomic model replacement."""
         self.joint_names = list(JOINT_NAMES)
         self.joint_ids = np.array(
             [mujoco.mj_name2id(self.model, mujoco.mjtObj.mjOBJ_JOINT, n) for n in self.joint_names]
@@ -173,18 +262,49 @@ class PhysicsWorld:
         self.goal_site_id = mujoco.mj_name2id(self.model, mujoco.mjtObj.mjOBJ_SITE, "goal")
         self.timestep = float(self.model.opt.timestep)
         self._cubes = {}
+        self._cube_body_ids = {}
+        self._cube_geom_ids = {}
         for cube in self.scene["cubes"]:
             joint = mujoco.mj_name2id(self.model, mujoco.mjtObj.mjOBJ_JOINT, f"free_{cube['name']}")
             self._cubes[cube["name"]] = (
                 int(self.model.jnt_qposadr[joint]),
                 int(self.model.jnt_dofadr[joint]),
             )
-        self._renderer = None
-        self._render_shape = None
-        self._render_thread_id = None
-        self._closed = False
-        self._targets = HOME_Q_RAD.copy()
-        self.reset()
+            self._cube_body_ids[cube["name"]] = mujoco.mj_name2id(
+                self.model, mujoco.mjtObj.mjOBJ_BODY, cube["name"]
+            )
+            self._cube_geom_ids[cube["name"]] = mujoco.mj_name2id(
+                self.model, mujoco.mjtObj.mjOBJ_GEOM, f"geom_{cube['name']}"
+            )
+        self.physics_settings = copy.deepcopy(self.scene["physics"])
+        self.actuator_settings = copy.deepcopy(self.scene["actuators"])
+        dynamic_config = {
+            "model_version": "parol6-contact-controls-v2",
+            "timestep_s": self.timestep,
+            "gravity_m_s2": self.scene["gravity_m_s2"],
+            "physics": self.physics_settings,
+            "actuators": self.actuator_settings,
+            "cubes": [
+                {
+                    key: cube[key]
+                    for key in (
+                        "name",
+                        "size_m",
+                        "mass_kg",
+                        "com_offset_m",
+                        "friction",
+                        "restitution",
+                    )
+                }
+                for cube in self.scene["cubes"]
+            ],
+            "obstacles": self.scene["obstacles"],
+        }
+        self.physics_fingerprint = hashlib.sha256(
+            json.dumps(
+                dynamic_config, sort_keys=True, separators=(",", ":"), allow_nan=False
+            ).encode()
+        ).hexdigest()
 
     @property
     def joint_targets_rad(self) -> np.ndarray:
@@ -232,7 +352,18 @@ class PhysicsWorld:
             raise ValueError("step n must be an integer between 1 and 100000")
         with self.lock:
             self._ensure_open()
-            mujoco.mj_step(self.model, self.data, nstep=int(n))
+            if self._physics_thread_id is None:
+                self._physics_thread_id = threading.get_ident()
+            slew = self.actuator_settings["target_velocity_limits_rad_s"]
+            if slew is None:
+                mujoco.mj_step(self.model, self.data, nstep=int(n))
+            else:
+                max_change = np.asarray(slew) * self.timestep
+                for _ in range(int(n)):
+                    self.data.ctrl[:] += np.clip(
+                        self._targets - self.data.ctrl, -max_change, max_change
+                    )
+                    mujoco.mj_step(self.model, self.data)
             if not np.isfinite(self.data.qpos).all() or not np.isfinite(self.data.qvel).all():
                 raise RuntimeError(
                     "Physics became non-finite; reset the world and inspect the scene"
@@ -243,13 +374,101 @@ class PhysicsWorld:
         with self.lock:
             self._ensure_open()
             self._targets = self._valid_joints(q_rad)
-            self.data.ctrl[:] = self._targets
+            if self.actuator_settings["target_velocity_limits_rad_s"] is None:
+                self.data.ctrl[:] = self._targets
+
+    def _rebuild(self, candidate_scene: dict) -> dict:
+        """Validate/compile first; replace the shared model on its owner thread.
+
+        This preserves body origins/orientations, free-joint velocities, robot
+        positions/velocities, simulated time, the goal, and requested/applied
+        controls. COM edits change the body's inertial description instantly;
+        they do not reconstruct an underlying material density distribution.
+        """
+        self._ensure_open()
+        thread_id = threading.get_ident()
+        owner = self._render_thread_id or self._physics_thread_id
+        if owner is not None and owner != thread_id:
+            raise RuntimeError("Model configuration must run on the owning physics/render thread")
+        scene = _validated_scene(candidate_scene)
+        if scene == self.scene:
+            return self.state()
+        xml, assets = build_model_xml(scene)
+        model = mujoco.MjModel.from_xml_string(xml, assets)
+        data = mujoco.MjData(model)
+        # Property/toggle edits never add/remove joints, so layout is preserved.
+        if model.nq != self.model.nq or model.nv != self.model.nv:
+            raise ValueError("Live configuration cannot change the robot/body topology")
+        data.qpos[:] = self.data.qpos
+        data.qvel[:] = self.data.qvel
+        data.qacc_warmstart[:] = self.data.qacc_warmstart
+        data.qfrc_applied[:] = self.data.qfrc_applied
+        data.xfrc_applied[:] = self.data.xfrc_applied
+        data.ctrl[:] = self.data.ctrl
+        data.time = self.data.time
+        goal_site = mujoco.mj_name2id(model, mujoco.mjtObj.mjOBJ_SITE, "goal")
+        model.site_pos[goal_site] = self.model.site_pos[self.goal_site_id]
+        mujoco.mj_forward(model, data)
+        if (
+            not np.isfinite(data.qpos).all()
+            or not np.isfinite(data.qvel).all()
+            or not np.isfinite(data.qacc).all()
+        ):
+            raise ValueError("Configuration produces non-finite physics")
+        if self._renderer is not None:
+            self._renderer.close()
+            self._renderer = None
+            self._render_shape = None
+        self.scene, self.model_xml, self.model, self.data = scene, xml, model, data
+        self._physics_thread_id = thread_id
+        self._bind_model()
+        self.model_revision += 1
+        return self.state()
+
+    def configure_cube(self, name: str, properties: dict) -> dict:
+        """Change geometry/material/inertia without resetting current motion."""
+        with self.lock:
+            self._ensure_open()
+            if name not in self._cubes:
+                raise ValueError(f"Unknown cube {name!r}")
+            if not isinstance(properties, dict):
+                raise ValueError("cube properties must be an object")
+            _unknown_keys(
+                properties,
+                {"size_m", "mass_kg", "com_offset_m", "friction", "restitution", "rgba"},
+                "cube property",
+            )
+            scene = copy.deepcopy(self.scene)
+            cube = next(c for c in scene["cubes"] if c["name"] == name)
+            cube.update(properties)
+            return self._rebuild(scene)
+
+    def configure_physics(self, settings: dict) -> dict:
+        with self.lock:
+            self._ensure_open()
+            if not isinstance(settings, dict):
+                raise ValueError("physics settings must be an object")
+            scene = copy.deepcopy(self.scene)
+            scene["physics"].update(settings)
+            return self._rebuild(scene)
+
+    def configure_actuators(self, settings: dict) -> dict:
+        with self.lock:
+            self._ensure_open()
+            if not isinstance(settings, dict):
+                raise ValueError("actuator settings must be an object")
+            scene = copy.deepcopy(self.scene)
+            scene["actuators"].update(settings)
+            return self._rebuild(scene)
 
     def state(self) -> dict:
         with self.lock:
             self._ensure_open()
+            contacts, cube_forces, robot_force, total_force = self._contact_telemetry()
             cubes = []
             for name, (qa, da) in self._cubes.items():
+                properties = next(c for c in self.scene["cubes"] if c["name"] == name)
+                body_id = self._cube_body_ids[name]
                 cubes.append(
                     dict(
                         name=name,
@@ -257,8 +476,39 @@ class PhysicsWorld:
                         quaternion_wxyz=self.data.qpos[qa + 3 : qa + 7].tolist(),
                         velocity_m_s=self.data.qvel[da : da + 3].tolist(),
                         angular_velocity_rad_s=self.data.qvel[da + 3 : da + 6].tolist(),
+                        size_m=properties["size_m"].copy(),
+                        mass_kg=properties["mass_kg"],
+                        com_offset_m=properties["com_offset_m"].copy(),
+                        com_position_m=self.data.xipos[body_id].tolist(),
+                        inertia_diagonal_kg_m2=self.model.body_inertia[body_id].tolist(),
+                        friction=properties["friction"].copy(),
+                        restitution=properties["restitution"],
+                        contact_solref=list(restitution_solref(properties["restitution"])),
+                        restitution_model="legacy_soft_contact"
+                        if properties["restitution"] is None
+                        else "requested_approximate_restitution",
+                        rgba=properties["rgba"].copy(),
+                        contact_force_n=cube_forces[name][0],
+                        net_contact_force_world_n=cube_forces[name][1].tolist(),
                     )
                 )
+            q = self.data.qpos[self.joint_qpos_addresses]
+            qd = self.data.qvel[self.joint_dof_addresses]
+            error = self._targets - q
+            raw = (
+                np.asarray(self.actuator_settings["kp"]) * (self.data.ctrl - q)
+                - np.asarray(self.actuator_settings["kv"]) * qd
+            )
+            if not self.physics_settings["actuation_enabled"]:
+                raw[:] = 0
+            caps = np.asarray(self.actuator_settings["torque_limits_nm"])
+            measured = self.data.qfrc_actuator[self.joint_dof_addresses].copy()
+            saturated = (np.abs(raw) >= caps * 0.999) | (np.abs(measured) >= caps * 0.999)
+            low_speed_loaded = saturated & (np.abs(qd) < 0.05) & (np.abs(error) > 0.025)
+            tcp_velocity = np.zeros(6)
+            mujoco.mj_objectVelocity(
+                self.model, self.data, mujoco.mjtObj.mjOBJ_SITE, self.tcp_site_id, tcp_velocity, 0
+            )
             return dict(
                 time_s=float(self.data.time),
                 timestep_s=self.timestep,
@@ -266,12 +516,70 @@ class PhysicsWorld:
                 q_rad=self.data.qpos[self.joint_qpos_addresses].tolist(),
                 qd_rad_s=self.data.qvel[self.joint_dof_addresses].tolist(),
                 joint_targets_rad=self._targets.tolist(),
+                actuator_targets_rad=self.data.ctrl.tolist(),
+                joint_commanded_torque_nm=raw.tolist(),
+                joint_measured_torque_nm=measured.tolist(),
+                joint_target_error_rad=error.tolist(),
+                joint_torque_limits_nm=caps.tolist(),
+                joint_torque_saturated=saturated.tolist(),
+                joint_load_limited=low_speed_loaded.tolist(),
                 joint_limits_rad=self.joint_limits.tolist(),
                 tcp_m=self.data.site_xpos[self.tcp_site_id].tolist(),
+                tcp_velocity_m_s=tcp_velocity[3:].tolist(),
                 goal_m=self.model.site_pos[self.goal_site_id].tolist(),
                 cubes=cubes,
                 contact_count=int(self.data.ncon),
+                contacts=contacts,
+                contact_force_n=robot_force,
+                robot_contact_force_n=robot_force,
+                total_contact_force_n=total_force,
+                physics_settings=copy.deepcopy(self.physics_settings),
+                actuator_settings=copy.deepcopy(self.actuator_settings),
+                physics_fingerprint=self.physics_fingerprint,
+                model_revision=self.model_revision,
             )
+
+    def _contact_telemetry(self):
+        """Last physics-step contact forces; positive force acts on geom2.
+
+        Normal loads sum magnitudes rather than cancelling opposing contacts.
+        Net per-cube world forces include contact only, excluding gravity.
+        The robot metric excludes the fixed base/floor pair so it can be used
+        to detect loaded interaction at the moving arm's contact proxies.
+        """
+        cube_forces = {name: [0.0, np.zeros(3)] for name in self._cubes}
+        cube_by_geom = {geom: name for name, geom in self._cube_geom_ids.items()}
+        records, robot_force, total_force = [], 0.0, 0.0
+        force = np.zeros(6)
+        for index, contact in enumerate(self.data.contact):
+            first, second = (int(g) for g in contact.geom)
+            names = [
+                mujoco.mj_id2name(self.model, mujoco.mjtObj.mjOBJ_GEOM, geom) or str(geom)
+                for geom in (first, second)
+            ]
+            mujoco.mj_contactForce(self.model, self.data, index, force)
+            normal = max(0.0, float(force[0]))
+            world_force = contact.frame.reshape(3, 3).T @ force[:3]
+            total_force += normal
+            moving_robot = any(name.startswith("collision_L") for name in names)
+            if moving_robot:
+                robot_force += normal
+            for geom, sign in ((first, -1.0), (second, 1.0)):
+                if geom in cube_by_geom:
+                    cube_forces[cube_by_geom[geom]][0] += normal
+                    cube_forces[cube_by_geom[geom]][1] += sign * world_force
+            records.append(
+                dict(
+                    geom1=names[0],
+                    geom2=names[1],
+                    position_m=contact.pos.tolist(),
+                    distance_m=float(contact.dist),
+                    normal_force_n=normal,
+                    force_on_geom2_world_n=world_force.tolist(),
+                    robot_involved=moving_robot,
+                )
+            )
+        return records, cube_forces, robot_force, total_force
 
     def tcp_position(self) -> np.ndarray:
         with self.lock:

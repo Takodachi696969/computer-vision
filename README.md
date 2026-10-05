@@ -2,7 +2,7 @@
 
 **A local PAROL6 physics simulator, browser controls, and an open interface for your own policies.**
 
-Build scenes with moving cubes, gravity and contact. Control the arm manually, from Python or HTTP, then train and evaluate a policy in the same MuJoCo world. The robot uses the pinned PAROL6 URDF frames, native joint limits, masses and inertias, with the original CAD visuals.
+Build scenes with moving cubes, gravity and contact. Control the arm through joint targets, tip positions/waypoints, or arrow-key jogging, then use Python/HTTP or train a policy in the same MuJoCo world. The robot uses the pinned PAROL6 URDF frames, native joint limits, masses and inertias, with the original CAD visuals.
 
 **Branch:** `feat/parol6-simulation-lab` · **Python:** 3.12 · **Dashboard/API:** `http://127.0.0.1:8765`
 
@@ -36,6 +36,25 @@ powershell.exe -NoProfile -ExecutionPolicy Bypass -File .\scripts\stop-lab.ps1
 ```
 
 The explicit PowerShell invocation also works when `.ps1` scripts are disabled. Its execution policy applies only to the launched process and its children; it does not change your saved user or machine settings. See [Microsoft's execution policy documentation](https://learn.microsoft.com/en-us/powershell/module/microsoft.powershell.core/about/about_execution_policies?view=powershell-5.1). Stop the old server before changing its scene; append `-Scene .\configs\scenes\moving_cubes.json` to the start command to select a scene.
+
+## Explore the physical simulation
+
+- **Viewer settings:** continuous MJPEG streaming, target 15/30/60 FPS, resolution/quality controls and a collision-proxy overlay. This Windows desktop sustained about 30/60 streamed FPS at 960×640 with real-time physics; actual FPS is shown in the dashboard.
+- **Joint targets:** move six servos using joint sliders.
+- **Tip / waypoints:** position-only IK, timed joint interpolation, editable waypoint sequences, looping, arrival tolerance and optional contact-force stop. Progress follows actual tip arrival; blocked moves can time out.
+- **Arrow keys:** enable the keyboard, choose J1–J6 with Left/Right or 1–6, then hold Up/Down at an adjustable target rate. Release/focus loss ends jogging; the server also expires missing heartbeats.
+- **Cube properties:** edit dimensions, mass, local centre of mass, sliding/torsional/rolling friction and requested approximate restitution without restarting the service.
+- **Physics layers and actuators:** isolate gravity/contact/friction/damping/actuation, edit torque caps and servo gains, and inspect tracking error, force and saturation. Save the configured initial scene as JSON for reuse.
+
+Read the [physics and motion walkthrough](docs/physics-controls.md). The URDF's six nominal 300 Nm caps and the lower-torque experiment preset are not measured PAROL6 ratings. Contact shapes, cube COM inertia and bounce mapping are approximations; the model has no gripper or fracture mechanism.
+
+```powershell
+# Program a live sequence; watch the browser while it runs
+.\.venv\Scripts\python.exe examples/control/tip_waypoints.py
+
+# Compare light/heavy contact in independent physical worlds
+.\.venv\Scripts\python.exe examples/scenes/load_comparison.py
+```
 
 ## Understand the system in a minute
 

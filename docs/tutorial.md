@@ -4,6 +4,8 @@ This guide is for the package in this branch. It provides a PAROL6-shaped MuJoCo
 
 Commands below use Windows PowerShell from the repository root. `humaned-lab --help` and each subcommand's `--help` are the final authority for your installed version. For a concise map, read [architecture.md](architecture.md); for concrete upstream issues and model limits, read [problems.md](problems.md).
 
+For Cartesian XYZ movement and waypoints, arrow-key jogging, live cube properties, limited motor effort and model-layer checkboxes, use [the physics-controls guide](physics-controls.md). It distinguishes requested targets/material settings from measured simulated motion and hardware calibration.
+
 ## 1. Reproduce the installation
 
 Clone this branch on the other computer rather than copying an existing virtual environment:
@@ -52,6 +54,8 @@ Leave this process running. Open [http://127.0.0.1:8765](http://127.0.0.1:8765).
 4. Pause physics when you want to inspect a pose or issue deterministic policy steps. Resume to let gravity and servos run in wall-clock-paced simulation.
 5. Reset to return joints, cubes and velocities to the configured initial conditions. Resetting the physics lab does not send a physical robot homing command.
 6. Use a cube reset/launch operation, then watch position and contact changes. The cube's pose operation places it at a new state; its later movement is simulated physics.
+
+The dashboard also offers position-only XYZ targets and sequential waypoints, plus arrow jogging: Left/Right or 1–6 selects a joint, and Up/Down changes its target at the chosen degrees per second. Releasing the key or leaving the page stops jogging; a missing heartbeat expires after 0.35 seconds. Cartesian moves interpolate joint targets and leave orientation unconstrained. Consult [physics controls](physics-controls.md) before using these as a path-planning experiment.
 
 The server runs a shared world. A browser, notebook and policy script connected to the same port operate on that same state. Avoid multiple independent controllers fighting over the arm. The policy-step endpoint pauses continuous integration and advances one control interval per request, making it useful for repeatable experiments.
 
@@ -188,6 +192,8 @@ HTTP reference:
 
 FastAPI also supplies the interactive endpoint specification at [http://127.0.0.1:8765/docs](http://127.0.0.1:8765/docs).
 
+The [physics-controls HTTP table](physics-controls.md#added-http-routes) adds streamed frames, viewer settings, position IK/waypoints, timed joint jog, live cube/actuator/material edits and resolved scene export. Its [client examples](physics-controls.md#send-commands-from-your-own-program) show the matching `SimulationClient` methods.
+
 ## 4. Write physical scenes and simulations
 
 Start by copying a scene from `configs/scenes/` into your own JSON file. Select it with `humaned-lab serve --scene configs/scenes/my_scene.json`. The engine validates the file and converts it into MuJoCo bodies, joints, contact shapes and actuators at startup.
@@ -227,7 +233,9 @@ Here is a complete small scene you can save as `configs/scenes/my_scene.json`:
 }
 ```
 
-`size_m` is the full XYZ extent, not a half-extent. A 4 cm cube resting on the floor has its centre near `z=0.02`. Quaternions are `w,x,y,z`; they are normalized by the loader. Angular velocity is rad/s. The three friction entries describe sliding, torsional and rolling contact coefficients in MuJoCo's model. Mass is kg; gravity is m/s². [MuJoCo reference](https://mujoco.readthedocs.io/en/stable/XMLreference.html#body-geom).
+`size_m` is the full XYZ extent, not a half-extent. A 4 cm cube resting on the floor has its centre near `z=0.02`. Quaternions are `w,x,y,z`; they are normalized by the loader. Angular velocity is rad/s. The three friction entries describe sliding, torsional and rolling contact parameters in MuJoCo's model. Sliding is dimensionless; torsional/rolling parameters have length units. Mass is kg; gravity is m/s². [MuJoCo reference](https://mujoco.readthedocs.io/en/stable/XMLreference.html#body-geom), [contact semantics](https://mujoco.readthedocs.io/en/stable/computation/index.html#contact).
+
+Optional cube fields `com_offset_m` and `restitution` configure a local COM offset and requested bounce approximation. Scene-level `physics` and `actuators` settings select mechanisms and motor response. Live material changes persist through reset and can be exported for reproducible experiments. See [physics controls](physics-controls.md) for the exact fields, allowed ranges and calibration limits.
 
 `position_jitter_m` defines a uniform ±range per axis applied on a seeded reset. Keep initial objects above the floor and away from overlapping robot links. Arbitrary large penetrations can produce large impulses and poor learning data. The current scene loader accepts up to 32 cubes and 32 fixed box obstacles, rejects unknown fields and duplicate/reserved names, and bounds basic physical parameters. It does not prove that your arrangement is solvable.
 
@@ -413,6 +421,8 @@ with SimulationClient() as lab:
 ```
 
 Launch the server with the experiment's saved scene if you want the same environment: `humaned-lab serve --scene outputs/my_experiment/scene.json`. Checkpoint loading expects a trusted checkpoint from this exact observation/action contract. It does not support arbitrary downloaded robot models.
+
+If you edited live cube mass/friction, torque caps or mechanism checkboxes, first save that resolved scene and evaluate on it. The bundled PPO's historical result applies to its reference scene; unchanged action/observation dimensions do not establish performance under new dynamics. Keep the reference checkpoint intact and retrain a new experiment when required.
 
 The equivalent live CLI is `humaned-lab policy humaned_lab.policies.sb3:PPOPolicy --model outputs/my_experiment/model.zip --steps 200`. It resets the open server's world before rollout; select the saved scene when starting that server.
 

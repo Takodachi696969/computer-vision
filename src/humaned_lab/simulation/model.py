@@ -17,6 +17,42 @@ ASSET_DIR = Path(__file__).resolve().parent / "assets"
 ROBOT_DIR = ASSET_DIR / "parol6"
 JOINT_NAMES = tuple(f"L{i}" for i in range(1, 7))
 HOME_Q_RAD = np.deg2rad([90.0, -90.0, 180.0, 0.0, 0.0, 180.0])
+DEFAULT_PHYSICS = {
+    "gravity_enabled": True,
+    "robot_object_contacts_enabled": True,
+    "object_floor_contacts_enabled": True,
+    "object_object_contacts_enabled": True,
+    "robot_floor_contacts_enabled": True,
+    "friction_enabled": True,
+    "joint_damping_enabled": True,
+    "actuation_enabled": True,
+    "self_collision_enabled": False,
+}
+DEFAULT_ACTUATORS = {
+    "kp": [180.0, 180.0, 140.0, 50.0, 45.0, 30.0],
+    "kv": [10.0, 10.0, 8.0, 3.0, 3.0, 2.0],
+    "torque_limits_nm": [300.0] * 6,
+    "target_velocity_limits_rad_s": None,
+}
+RESTITUTION_STIFFNESS = 20000.0
+
+
+def restitution_solref(requested: float | None) -> tuple[float, float]:
+    """Approximate restitution using normalized contact stiffness/damping.
+
+    The oscillator damping-ratio relation is a tuning aid, not an exact
+    coefficient of restitution in MuJoCo's discrete, soft contact solver.
+    None preserves the original lab contact model for existing checkpoints.
+    Direct-format stiffness has MuJoCo's normalized units, not N/m.
+    """
+    if requested is None:
+        return (0.008, 1.0)
+    ratio = (
+        1.0
+        if requested <= 0
+        else -math.log(requested) / math.sqrt(math.pi**2 + math.log(requested) ** 2)
+    )
+    return (-RESTITUTION_STIFFNESS, -2.0 * math.sqrt(RESTITUTION_STIFFNESS) * ratio)
 
 
 def _numbers(values: list[float] | np.ndarray) -> str:
@@ -61,13 +97,28 @@ def build_model_xml(scene: dict) -> tuple[str, dict[str, bytes]]:
     urdf = ET.parse(ROBOT_DIR / "PAROL6.urdf").getroot()
     links = {element.attrib["name"]: element for element in urdf.findall("link")}
     joints = {element.find("child").attrib["link"]: element for element in urdf.findall("joint")}
+    physics = scene.get("physics", DEFAULT_PHYSICS)
+    servo = scene.get("actuators", DEFAULT_ACTUATORS)
+    # Separate robot (1), free object (2), and static environment (4) categories
+    # let one contact layer be disabled without disabling the others.
+    robot_affinity = (2 if physics["robot_object_contacts_enabled"] else 0) | (
+        4 if physics["robot_floor_contacts_enabled"] else 0
+    )
+    object_affinity = (
+        (1 if physics["robot_object_contacts_enabled"] else 0)
+        | (4 if physics["object_floor_contacts_enabled"] else 0)
+        | (2 if physics["object_object_contacts_enabled"] else 0)
+    )
+    static_affinity = (1 if physics["robot_floor_contacts_enabled"] else 0) | (
+        2 if physics["object_floor_contacts_enabled"] else 0
+    )
     root = ET.Element("mujoco", model="humaned_parol6_lab")
     ET.SubElement(root, "compiler", angle="radian", autolimits="true", inertiafromgeom="false")
     ET.SubElement(
         root,
         "option",
         timestep=str(scene["timestep_s"]),
-        gravity=_numbers(scene["gravity_m_s2"]),
+        gravity=_numbers(scene["gravity_m_s2"] if physics["gravity_enabled"] else [0, 0, 0]),
         integrator="implicitfast",
         iterations="60",
         cone="elliptic",
@@ -81,12 +132,17 @@ def build_model_xml(scene: dict) -> tuple[str, dict[str, bytes]]:
     )
     default = ET.SubElement(root, "default")
     ET.SubElement(
-        default, "joint", damping="0.06", armature="0.008", limited="true", solreflimit="0.006 1"
+        default,
+        "joint",
+        damping="0.06" if physics["joint_damping_enabled"] else "0",
+        armature="0.008",
+        limited="true",
+        solreflimit="0.006 1",
     )
     ET.SubElement(
         default,
         "geom",
-        friction="0.8 0.02 0.002",
+        friction="0.8 0.02 0.002" if physics["friction_enabled"] else "0 0 0",
         solref="0.008 1",
         solimp="0.95 0.99 0.001",
         condim="6",
@@ -125,8 +181,8 @@ def build_model_xml(scene: dict) -> tuple[str, dict[str, bytes]]:
         type="plane",
         size="1.5 1.5 0.1",
         material="floor_mat",
-        contype="2",
-        conaffinity="3",
+        contype="4",
+        conaffinity=str(static_affinity),
     )
     ET.SubElement(
         world,
@@ -191,7 +247,7 @@ def build_model_xml(scene: dict) -> tuple[str, dict[str, bytes]]:
             **_COLLISIONS[name],
             rgba="0.1 0.7 0.9 0.35",
             contype="1",
-            conaffinity="2",
+            conaffinity=str(robot_affinity),
             group="3",
         )
         if name == "L6":
@@ -218,7 +274,15 @@ def build_model_xml(scene: dict) -> tuple[str, dict[str, bytes]]:
             * (np.sum(np.asarray(cube["size_m"]) ** 2) - np.asarray(cube["size_m"]) ** 2)
             / 12.0
         )
-        ET.SubElement(body, "inertial", pos="0 0 0", mass=str(mass), diaginertia=_numbers(diagonal))
+        # Approximation: retain uniform-box principal moments about the displaced
+        # local COM. This does not reconstruct a measured nonuniform density.
+        ET.SubElement(
+            body,
+            "inertial",
+            pos=_numbers(cube.get("com_offset_m", [0, 0, 0])),
+            mass=str(mass),
+            diaginertia=_numbers(diagonal),
+        )
         ET.SubElement(
             body,
             "geom",
@@ -227,8 +291,9 @@ def build_model_xml(scene: dict) -> tuple[str, dict[str, bytes]]:
             size=_numbers(half_size),
             rgba=_numbers(cube["rgba"]),
             contype="2",
-            conaffinity="3",
-            friction=_numbers(cube["friction"]),
+            conaffinity=str(object_affinity),
+            friction=_numbers(cube["friction"] if physics["friction_enabled"] else [0, 0, 0]),
+            solref=_numbers(restitution_solref(cube.get("restitution"))),
             priority="1",
         )
     for obstacle in scene["obstacles"]:
@@ -240,8 +305,8 @@ def build_model_xml(scene: dict) -> tuple[str, dict[str, bytes]]:
             pos=_numbers(obstacle["position_m"]),
             size=_numbers(np.asarray(obstacle["size_m"]) / 2),
             rgba=_numbers(obstacle["rgba"]),
-            contype="2",
-            conaffinity="3",
+            contype="4",
+            conaffinity=str(static_affinity),
         )
     goal = scene["goal_m"]
     ET.SubElement(
@@ -254,16 +319,16 @@ def build_model_xml(scene: dict) -> tuple[str, dict[str, bytes]]:
         rgba="0.3 0.95 0.45 0.45",
     )
     actuators = ET.SubElement(root, "actuator")
-    for name, kp, kv in zip(JOINT_NAMES, (180, 180, 140, 50, 45, 30), (10, 10, 8, 3, 3, 2)):
+    for i, name in enumerate(JOINT_NAMES):
         limit = joints[name].find("limit")
         ET.SubElement(
             actuators,
             "position",
             name=f"servo_{name}",
             joint=name,
-            kp=str(kp),
-            kv=str(kv),
+            kp=str(servo["kp"][i] if physics["actuation_enabled"] else 0),
+            kv=str(servo["kv"][i] if physics["actuation_enabled"] else 0),
             ctrlrange=f"{limit.attrib['lower']} {limit.attrib['upper']}",
-            forcerange=f"-{limit.attrib['effort']} {limit.attrib['effort']}",
+            forcerange=f"-{servo['torque_limits_nm'][i]} {servo['torque_limits_nm'][i]}",
         )
     return ET.tostring(root, encoding="unicode"), assets

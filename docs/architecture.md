@@ -1,10 +1,10 @@
 # Architecture in one page
 
-This repository gives PAROL6 a local physics world, an HTTP control port, a browser panel, and a small policy contract. Start with [the tutorial](tutorial.md); the [audit](problems.md) records limits and upstream issues.
+This repository gives PAROL6 a local physics world, an HTTP control port, a browser panel, and a small policy contract. Start with [the tutorial](tutorial.md); [physics controls](physics-controls.md) explains material, motor and Cartesian experiments, and the [audit](problems.md) records limits and upstream issues.
 
 ```mermaid
 flowchart LR
-    UI[Browser joint sliders] --> API[FastAPI :8765]
+    UI[Browser joints / XYZ / arrow jog] --> API[FastAPI :8765]
     Script[Your script / policy] --> API
     API --> World[PhysicsWorld / MuJoCo]
     Scenes[JSON scenes + pinned PAROL6 URDF] --> World
@@ -24,7 +24,7 @@ flowchart LR
 |---|---|---|
 | `src/humaned_lab/cli.py` | One command entry point | A new user command |
 | `src/humaned_lab/simulation/model.py` | URDF → MuJoCo XML, contact proxies, actuators | Robot physics or contact geometry |
-| `src/humaned_lab/simulation/world.py` | Reset, integrate, render, read state, set joint/cube targets | New world operations |
+| `src/humaned_lab/simulation/world.py` | Reset, integrate, render, material/actuator edits, IK and telemetry | New world operations |
 | `src/humaned_lab/simulation/world.py::_scene_config` | Validate/load scene descriptions | New physical scene fields |
 | `src/humaned_lab/control/server.py` | Local HTTP API, simulation loop and locking | A new remote control operation |
 | `src/humaned_lab/control/dashboard.html` | Browser controls and rendered image | The manual interface |
@@ -50,4 +50,4 @@ Public simulation units are metres, radians, kilograms and seconds. Six normaliz
 
 ## Fidelity boundary
 
-Joint origins, axes, ranges, masses, centre-of-mass locations and inertia tensors come from the PAROL6 URDF. Visual STL meshes are separate from coarse primitive collision shapes. MuJoCo integrates gravity and rigid-body contact for cubes and obstacles; servo gains, damping and collision proxies are lab approximations. Robot self-collision is disabled in the current contact-mask model. The URDF's effort limits do not establish measured motor torque capability. Camera-to-robot calibration, firmware delays, stepper behaviour, compliant fingers, grasping and physical policy deployment remain separate engineering work. See [asset provenance](../src/humaned_lab/simulation/assets/parol6/PROVENANCE.md) and [MuJoCo's model reference](https://mujoco.readthedocs.io/en/stable/XMLreference.html).
+Joint origins, axes, ranges, masses, centre-of-mass locations and inertia tensors come from the PAROL6 URDF. Visual STL meshes are separate from coarse primitive collision shapes. MuJoCo integrates gravity and rigid-body contact for cubes and obstacles; servo gains, damping and collision proxies are lab approximations. Cube dimensions, mass, local COM, friction and requested bounce can be edited; supported mechanism flags allow controlled ablation. Robot self-collision remains disabled. The six default 300 Nm caps come from generic URDF effort entries, not measured motor capability. Position-only IK and joint-interpolated waypoints do not enforce tool orientation or plan collision-free Cartesian paths. Camera-to-robot calibration, firmware delays, stepper behaviour, compliant fingers, fracture, grasping and physical policy deployment remain separate engineering work. See [physics controls](physics-controls.md), [asset provenance](../src/humaned_lab/simulation/assets/parol6/PROVENANCE.md) and [MuJoCo's model reference](https://mujoco.readthedocs.io/en/stable/XMLreference.html).
