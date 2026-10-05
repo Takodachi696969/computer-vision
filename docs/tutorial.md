@@ -11,11 +11,13 @@ Clone this branch on the other computer rather than copying an existing virtual 
 ```powershell
 git clone --branch feat/parol6-simulation-lab https://github.com/Takodachi696969/computer-vision.git
 Set-Location computer-vision
-.\scripts\bootstrap.ps1
+powershell.exe -NoProfile -ExecutionPolicy Bypass -File .\scripts\bootstrap.ps1
 .\.venv\Scripts\humaned-lab.exe doctor
 ```
 
 The fork carries the lab branch based on HumanED's repository. A Python virtual environment contains paths to its original interpreter and is not a portable installation artifact. The bootstrap and lock files are the portable artifact. The core uses CPython 3.12; optional robot dependencies have compiled ABI requirements.
+
+Windows can block direct `.ps1` launches with `PSSecurityException` / "running scripts is disabled." The explicit `powershell.exe -NoProfile -ExecutionPolicy Bypass -File ...` form permits these helpers in the launched process only, without changing saved user or machine settings. Use the same form for start/stop/setup helpers, with script arguments after the filename. Group Policy can take precedence; inspect `Get-ExecutionPolicy -List` if this form is still blocked. See [Microsoft's execution policy documentation](https://learn.microsoft.com/en-us/powershell/module/microsoft.powershell.core/about/about_execution_policies?view=powershell-5.1).
 
 Bootstrap requires Git and `uv`. If `uv` is missing, install it with `winget install --id astral-sh.uv -e`, reopen PowerShell and rerun bootstrap. The tested version is in `.uv-version`; the script warns if yours differs. `bootstrap.ps1` defaults to core + training + Hub + developer tools. Add `-Camera` for RealSense, or use `-CoreOnly` for core + developer tools without the training/Hub extras. The script obtains Python 3.12 through `uv`.
 
@@ -30,12 +32,7 @@ uv sync --frozen --extra train --extra camera --extra hub --group dev
 
 The MuJoCo lab does not require WSL or a source build of librealsense. RealSense's Python wheel is an optional device acquisition layer. PAROL6's native command/controller stack has additional compiled dependencies; install it through the optional upstream workflow described in section 8. It is not needed to train or control the independent physics world.
 
-Keep commands tied to the environment. Use the explicit `.\.venv\Scripts\humaned-lab.exe …` path. A plain `uv run` can synchronize away optional extras that are not selected in that invocation; if using it, supply the same desired `--extra` flags. Activation is convenient but not required:
-
-```powershell
-.\.venv\Scripts\Activate.ps1
-humaned-lab doctor
-```
+Keep commands tied to the environment. Use the explicit `.\.venv\Scripts\humaned-lab.exe …` path; activation is not required, and this executable also works when PowerShell scripts are blocked. A plain `uv run` can synchronize away optional extras that are not selected in that invocation; if using it, supply the same desired `--extra` flags.
 
 `doctor` reports package versions, an actual physics step and optional PyTorch CUDA status. Use `camera list` for actual camera discovery. A CUDA device name or a successful package import alone does not prove that a training kernel executes on that GPU. This lab's small state-vector PPO defaults to CPU; measure GPU benefit separately.
 
@@ -59,6 +56,20 @@ Leave this process running. Open [http://127.0.0.1:8765](http://127.0.0.1:8765).
 The server runs a shared world. A browser, notebook and policy script connected to the same port operate on that same state. Avoid multiple independent controllers fighting over the arm. The policy-step endpoint pauses continuous integration and advances one control interval per request, making it useful for repeatable experiments.
 
 Keep the terminal visible enough to notice errors. Stop with `Ctrl+C`; launch again to reopen the port. For machines without rendering support, `serve --no-render` still supports state/control; automatic rendering failures are also exposed through `/health`.
+
+Alternatively, start a background server and stop it later with these helpers:
+
+```powershell
+powershell.exe -NoProfile -ExecutionPolicy Bypass -File .\scripts\start-lab.ps1
+```
+
+To stop it later:
+
+```powershell
+powershell.exe -NoProfile -ExecutionPolicy Bypass -File .\scripts\stop-lab.ps1
+```
+
+Stop before changing the scene, then append `-Scene .\configs\scenes\moving_cubes.json` to the start command. The start helper reports an already-running lab rather than starting a competing controller.
 
 ## 3. Control it from PowerShell and Python
 
@@ -456,7 +467,7 @@ The upstream mock stack checks command planning, queueing and simulated telemetr
 Install the upstream stack into the separate `.upstream-venv`:
 
 ```powershell
-.\scripts\setup-upstream.ps1
+powershell.exe -NoProfile -ExecutionPolicy Bypass -File .\scripts\setup-upstream.ps1
 ```
 
 The script clones a pinned checkout into ignored `vendor/`, verifies its exact revision/clean state, installs PAROL6 and this lab into the optional environment, and runs the mock smoke check. `requirements/upstream-constraints.txt` records the dependency versions from the working native Windows stack; these optional constraints are separate from the core `uv.lock`. To reuse the existing clean pinned source checkout on this computer, use `-SourcePath ../PAROL6-python-API`.
@@ -583,6 +594,7 @@ This plan identifies the missing engineering pieces explicitly. The currently wo
 
 | Symptom | Check |
 |---|---|
+| `PSSecurityException` / running scripts is disabled | Use `powershell.exe -NoProfile -ExecutionPolicy Bypass -File .\scripts\start-lab.ps1`; its policy lasts only for the launched process. The foreground `.\.venv\Scripts\humaned-lab.exe serve` requires no `.ps1`. |
 | `humaned-lab` not found | Use `.\.venv\Scripts\humaned-lab.exe` or `uv run`; confirm bootstrap completed. |
 | Port already in use | Stop the existing server with `Ctrl+C`, or choose another port and matching client URL. |
 | Browser image missing but state works | Inspect `/health` and `render_error`; check OpenGL/display support. Hosted Windows runners can lack an OpenGL-capable WGL driver; use `serve --no-render` there. Linux rendering was verified with EGL. |

@@ -15,7 +15,7 @@ Install [Git](https://git-scm.com/downloads) and [uv](https://docs.astral.sh/uv/
 ```powershell
 git clone --branch feat/parol6-simulation-lab https://github.com/Takodachi696969/computer-vision.git
 Set-Location computer-vision
-.\scripts\bootstrap.ps1
+powershell.exe -NoProfile -ExecutionPolicy Bypass -File .\scripts\bootstrap.ps1
 .\.venv\Scripts\humaned-lab.exe serve
 ```
 
@@ -23,7 +23,19 @@ Open **[the dashboard](http://127.0.0.1:8765)**. Move a joint slider, click **Mo
 
 The bootstrap installs Python, locked dependencies, PPO training and Hugging Face tooling. It requires no WSL, robot, camera or C++ compiler. Use `-Camera` to include the RealSense SDK, or `-CoreOnly` for simulation without training. On Linux run `bash scripts/bootstrap.sh`; headless rendering may need EGL/Mesa (`MUJOCO_GL=egl`). Windows desktop rendering is verified locally, and Linux's full suite and EGL rendering passed CI. Hosted Windows runners lack the required OpenGL driver; use `serve --no-render` for physics/API work without a display. See [verification](docs/verification.md).
 
-For a background server on Windows, use `scripts/start-lab.ps1` and `scripts/stop-lab.ps1`. Stop the old server before changing its scene.
+For a background server on Windows, run these commands from the repository root:
+
+```powershell
+powershell.exe -NoProfile -ExecutionPolicy Bypass -File .\scripts\start-lab.ps1
+```
+
+To stop it later:
+
+```powershell
+powershell.exe -NoProfile -ExecutionPolicy Bypass -File .\scripts\stop-lab.ps1
+```
+
+The explicit PowerShell invocation also works when `.ps1` scripts are disabled. Its execution policy applies only to the launched process and its children; it does not change your saved user or machine settings. See [Microsoft's execution policy documentation](https://learn.microsoft.com/en-us/powershell/module/microsoft.powershell.core/about/about_execution_policies?view=powershell-5.1). Stop the old server before changing its scene; append `-Scene .\configs\scenes\moving_cubes.json` to the start command to select a scene.
 
 ## Understand the system in a minute
 
@@ -90,7 +102,7 @@ Read the **[detailed hands-on tutorial](docs/tutorial.md)** for manual control, 
 Install the original PAROL6 command stack in a separate environment with `scripts/setup-upstream.ps1`. It pins commit `b741d505ae9d1e3f28bd4ff4d0227b58b4921ed4`. On Windows, upstream TOPPRA needs **Microsoft C++ Build Tools**, or use Linux/WSL. This lab does not distribute the earlier locally built wheel. `upstream-smoke` homes and moves an owned mock controller; `bridge` reads upstream angles into physics. The tutorial includes commands and the hardware opt-in example.
 
 ```powershell
-.\scripts\bootstrap.ps1 -Camera
+powershell.exe -NoProfile -ExecutionPolicy Bypass -File .\scripts\bootstrap.ps1 -Camera
 .\.venv\Scripts\humaned-lab.exe camera list
 .\.venv\Scripts\humaned-lab.exe camera capture --output outputs/realsense
 ```
