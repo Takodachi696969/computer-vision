@@ -10,6 +10,7 @@ Recorded on **4 October 2026**, using this Windows computer and the repository's
 - `examples/scenes/load_comparison.py` uses independent 0.3 s worlds with caps `[12,12,8,1,1,1]` Nm and drops a box onto the wrist. Light 0.01 kg: peak arm normal load 0.629 N, peak tip deflection 3.954 mm, no saturation. Heavy 5 kg: 73.037 N, 50.553 mm peak deflection, two saturated joints; final deflection 12.511 mm after the cube moves/slips. These are model outcomes, not physical payload limits.
 - The configured base model's bundled PPO was reevaluated on 20 episodes starting at seed 20000: **19/20** reached, random baseline 0/20. This small regression check does not establish quality for edited cube materials/actuators/scenes. The previous 100-episode evaluation remains historical evidence for its recorded physics model.
 - Wheel build succeeded and contains the split HTML/CSS/JavaScript dashboard assets. No new runtime dependencies were needed. Source robot assets remain unchanged.
+- GitHub Actions [run 37343535779](https://github.com/Takodachi696969/computer-vision/actions/runs/37343535779) passed for implementation commit `5cd3f15`: Windows non-render checks and Linux full-suite/EGL checks both succeeded, including loading the bundled checkpoint. Windows desktop rendering remains verified locally; hosted Windows runners do not have the required WGL driver.
 
 The service was left running on loopback port 8765 with baseline physical properties and a 60 FPS viewer setting. Reopening it on another session defaults to 30 FPS.
 
