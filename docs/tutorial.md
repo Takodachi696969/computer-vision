@@ -8,6 +8,8 @@ For Cartesian XYZ movement and waypoints, arrow-key jogging, live cube propertie
 
 ## 1. Reproduce the installation
 
+The [new-machine guide](new-machine.md) collects the install/start/verify checklist and a copyable AI-agent setup prompt. Use [physics controls](physics-controls.md) for the latest motion and material walkthrough.
+
 Clone this branch on the other computer rather than copying an existing virtual environment:
 
 ```powershell

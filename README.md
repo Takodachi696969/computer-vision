@@ -10,6 +10,8 @@ Build scenes with moving cubes, gravity and contact. Control the arm through joi
 
 ## Start on another Windows computer
 
+For a complete clean-machine checklist and a copyable AI-agent setup prompt, use [the new-machine guide](docs/new-machine.md).
+
 Install [Git](https://git-scm.com/downloads) and [uv](https://docs.astral.sh/uv/getting-started/installation/), then open PowerShell:
 
 ```powershell
